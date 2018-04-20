@@ -5,3 +5,65 @@ CentOS 7 中firewall-cmd命令
 
 完整CentOS搭建OpenVPN服务详细教程
 http://www.zhimengzhe.com/linux/408192.html
+
+######fd22.ovpn####
+/etc/openvpn/client/fd22.ovpn
+client
+dev tun
+#proto tcp
+#proto udp
+proto tcp-client
+remote localhost port
+#remote xxx.xx.com port
+#remote serv_ip port
+resolv-retry infinite
+nobind
+persist-key
+persist-tun
+ca /etc/openvpn/clinew/ca.crt
+cert /etc/openvpn/clinew/fd22.crt
+key /etc/openvpn/clinew/fd22.key
+comp-lzo
+verb 3
+#socks-proxy 127.0.0.1 12000
+route serv_ip 255.255.255.255 net_gateway
+#/usr/sbin/ip route add 172.0.0.0/8 via 10.8.0.5
+
+###run client####
+##ssh tunel
+ssh -N -p TUNNEL_PORT USERNAME@THIRD_SERVER_IP -L LOCAL_PORT:PRIMARY_SERVER_IP:serv_port
+#start openvpn client
+sudo openvpn --config /etc/openvpn/client/fd22.ovpn
+
+
+########server.conf################
+###/etc/openvpn/server.conf
+#local 0.0.0.0     #监听地址
+#port 1194     #监听端口
+port serv_port
+#proto tcp     #监听协议
+#proto udp
+proto tcp-server
+dev tun     #采用路由隧道模式
+ca /root/ovpn/ca.crt      #ca证书路径
+cert /root/ovpn/server.crt       #服务器证书
+key /root/ovpn/server.key  # This file should be kept secret 服务器秘钥
+dh /root/ovpn/dh.pem     #密钥交换协议文件
+server 10.8.0.0 255.255.255.0     #给客户端分配地址池，注意：不能和VPN服务器内网网段有相同
+ifconfig-pool-persist ipp.txt
+#push "redirect-gateway def1 bypass-dhcp"      #给网关
+push "dhcp-option DNS 8.8.8.8"        #dhcp分配dns
+client-to-client       #客户端之间互相通信
+keepalive 10 120       #存活时间，10秒ping一次,120 如未收到响应则视为断线
+comp-lzo      #传输数据压缩
+max-clients 10     #最多允许 10 客户端连接
+user openvpn       #用户
+group openvpn      #用户组
+persist-key
+persist-tun
+status /var/log/openvpn/openvpn-status.log
+log         /var/log/openvpn/openvpn.log
+verb 3
+
+#######run openvpn
+systemctl restart openvpn@server.service
